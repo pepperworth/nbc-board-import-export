@@ -462,7 +462,7 @@
                 }
 
                 elementData.type = CONFIG.ELEMENT_TYPES.TEXT;
-                elementData.content = `<span class="nbc-highlight">An dieser Stelle muss das externe Tool ${toolType} hinzugefügt werden.</span>`;
+                elementData.content = `<span class="nbc-highlight">⚠️ An dieser Stelle muss das externe Tool ${toolType} hinzugefügt werden.</span>`;
                 elementData.shouldBeBold = true;
                 elementData.isExternalToolPlaceholder = true;
             }
