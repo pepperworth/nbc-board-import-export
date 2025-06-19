@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NBC Board Export & Import [8.7, stable]
+// @name         NBC Board Export & Import [8.8, stable]
 // @namespace    https://niedersachsen.cloud/
-// @version      8.7
-// @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. Unterstützt Lichtblick- und Bettermarks-Tools mit verbesserter ID-Erkennung.
+// @version      8.8
+// @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. Unterstützt Text-Platzhalter für externe Tools.
 // @author       Johannes Felbermair, ChatGPT
 // @match        https://niedersachsen.cloud/boards/*
 // @grant        GM_xmlhttpRequest
@@ -47,7 +47,7 @@
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     function log(...args) {
-        if (CONFIG.DEBUG) console.log('[NBC 8.7]', ...args);
+        if (CONFIG.DEBUG) console.log('[NBC 8.8]', ...args);
     }
 
     function notify(msg, type = 'info') {
@@ -438,109 +438,25 @@
             // VERBESSERTE Externes Tool-Element Erkennung
             const externalToolElement = contentElement.querySelector('[data-testid^="board-external-tool-element-"]');
             if (externalToolElement) {
-                elementData.type = CONFIG.ELEMENT_TYPES.EXTERNAL_TOOL;
-
-                const testId = externalToolElement.getAttribute('data-testid') || '';
-                const toolNameMatch = testId.match(/board-external-tool-element-(.+)/);
-                const toolName = toolNameMatch ? toolNameMatch[1] : 'UnknownTool';
-
-                const titleElement = externalToolElement.querySelector('[data-testid="content-element-title-slot"]');
-                const displayName = titleElement?.textContent.trim() || toolName;
-
-                // Tool-Typ anhand des Logos bestimmen
-                let toolType = '';
                 const logoImg = externalToolElement.querySelector('img[src*="external-tools"]');
+                let toolType = 'Externes Tool';
                 if (logoImg) {
                     const src = logoImg.getAttribute('src') || '';
                     if (src.includes('656e06272113d049ac0611b0')) {
                         toolType = 'Lichtblick';
                     } else if (src.includes('651d3288054b8000e321532e')) {
                         toolType = 'Bettermarks';
+                    } else if (src.includes('6551c45874b249d8d84c6520')) {
+                        toolType = 'YouTube';
+                    } else if (src.includes('656de805acfee5ece833c222')) {
+                        toolType = 'Classtime';
                     }
                 }
 
-                // VERBESSERTE Context-ID Extraktion basierend auf Netzwerkaufzeichnung
-                let contextId = '';
-
-                // Methode 1: id-Attribut (6853d144d542b1f8e8e6930e aus Netzwerkaufzeichnung)
-                contextId = externalToolElement.getAttribute('id') || '';
-                log(`Context-ID über id-Attribut: "${contextId}"`);
-
-                // Methode 2: Alle möglichen Attribute durchsuchen
-                if (!contextId || contextId.length < 20) {
-                    const attributes = externalToolElement.attributes;
-                    for (let i = 0; i < attributes.length; i++) {
-                        const attr = attributes[i];
-                        if (attr.value && /^[a-f0-9]{24}$/i.test(attr.value)) {
-                            contextId = attr.value;
-                            log(`Context-ID über Attribut '${attr.name}': "${contextId}"`);
-                            break;
-                        }
-                    }
-                }
-
-                // Methode 3: Suche in onclick/data-* Attributen
-                if (!contextId || contextId.length < 20) {
-                    const allAttrs = ['onclick', 'data-context', 'data-id', 'data-tool-id', 'aria-label'];
-                    for (const attrName of allAttrs) {
-                        const attrValue = externalToolElement.getAttribute(attrName) || '';
-                        const idMatch = attrValue.match(/[a-f0-9]{24}/i);
-                        if (idMatch) {
-                            contextId = idMatch[0];
-                            log(`Context-ID über Attribut '${attrName}': "${contextId}"`);
-                            break;
-                        }
-                    }
-                }
-
-                // Methode 4: Suche in parent/child Elementen
-                if (!contextId || contextId.length < 20) {
-                    const parent = externalToolElement.parentElement;
-                    if (parent) {
-                        const parentId = parent.getAttribute('id') || '';
-                        if (/^[a-f0-9]{24}$/i.test(parentId)) {
-                            contextId = parentId;
-                            log(`Context-ID über Parent-Element: "${contextId}"`);
-                        }
-                    }
-                }
-
-                // Methode 5: HTML-Content nach IDs durchsuchen
-                if (!contextId || contextId.length < 20) {
-                    const htmlContent = externalToolElement.innerHTML;
-                    const idMatches = htmlContent.match(/[a-f0-9]{24}/gi);
-                    if (idMatches && idMatches.length > 0) {
-                        contextId = idMatches[0];
-                        log(`Context-ID über HTML-Content: "${contextId}"`);
-                    }
-                }
-
-                log(`Externes Tool Debug Info:`, {
-                    testId,
-                    toolName,
-                    displayName,
-                    contextId,
-                    contextIdLength: contextId.length,
-                    element: externalToolElement
-                });
-
-                elementData.toolName = toolName;
-                elementData.displayName = displayName;
-                elementData.contextId = contextId;
-                elementData.toolType = toolType;
-                elementData.elementId = externalToolElement.getAttribute('id') || '';
-                elementData.cardId = cardId;
-                elementData.content = `🔧 Externes Tool: ${displayName} (${toolName})`;
+                elementData.type = CONFIG.ELEMENT_TYPES.TEXT;
+                elementData.content = `An dieser Stelle muss das externe Tool ${toolType} hinzugefügt werden.`;
                 elementData.shouldBeBold = true;
-
-                log(`Element ${index}: Externes Tool erkannt: ${displayName} (${toolName}, Context: ${contextId})`);
-
-                if (contextId && contextId.length >= 20) {
-                    elementData.needsToolIdExtraction = true;
-                } else {
-                    log(`WARNUNG: Context-ID zu kurz oder nicht gefunden für externes Tool: ${displayName}`);
-                    elementData.needsContextIdLookup = true;
-                }
+                elementData.isExternalToolPlaceholder = true;
             }
 
             if (elementData.type !== 'unknown') {
@@ -554,7 +470,7 @@
     // --- Formatversion erkennen ---
     function detectExportVersion(data) {
         const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        if (parsed.version === '8.7' || parsed.version === '8.6' || parsed.version === '8.5' || parsed.version === '8.4' || parsed.version === '8.3' || parsed.version === '8.2' || parsed.version === '8.1' || parsed.version === '8.0' || parsed.version === '7.0' || parsed.version === '6.2' || parsed.version === '6.1' || parsed.version === '6.0' || parsed.version === '5.0' ||
+        if (parsed.version === '8.8' || parsed.version === '8.7' || parsed.version === '8.6' || parsed.version === '8.5' || parsed.version === '8.4' || parsed.version === '8.3' || parsed.version === '8.2' || parsed.version === '8.1' || parsed.version === '8.0' || parsed.version === '7.0' || parsed.version === '6.2' || parsed.version === '6.1' || parsed.version === '6.0' || parsed.version === '5.0' ||
             (parsed.columns && parsed.columns[0] && parsed.columns[0].cards && parsed.columns[0].cards[0] && parsed.columns[0].cards[0].elements)) {
             return parsed.version || '5.0';
         }
@@ -621,7 +537,7 @@
                     const filesCount = elements.filter(e => e.type === CONFIG.ELEMENT_TYPES.FILE).length;
                     const linksCount = elements.filter(e => e.type === CONFIG.ELEMENT_TYPES.LINK).length;
                     const videoConferencesCount = elements.filter(e => e.type === CONFIG.ELEMENT_TYPES.VIDEO_CONFERENCE).length;
-                    const externalToolsCount = elements.filter(e => e.type === CONFIG.ELEMENT_TYPES.EXTERNAL_TOOL).length;
+                    const externalToolsCount = elements.filter(e => e.isExternalToolPlaceholder).length;
 
                     totalFiles += filesCount;
                     totalLinks += linksCount;
@@ -670,7 +586,7 @@
 
             const exportData = {
                 exportDate: new Date().toISOString(),
-                version: '8.7',
+                version: '8.8',
                 totalColumns: result.length,
                 totalCards: result.reduce((sum, col) => sum + col.cards.length, 0),
                 totalFiles: totalFiles,
@@ -685,14 +601,14 @@
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            a.download = `board-export-v8.7-${timestamp}.json`;
+            a.download = `board-export-v8.8-${timestamp}.json`;
             a.click();
             URL.revokeObjectURL(a.href);
 
             notify(`Export erfolgreich! ${totalElements} Elemente (${totalExternalTools} Externe Tools) in ${exportData.totalCards} Karten.`, 'success');
 
             log('Export-Statistiken:', {
-                Version: '8.7',
+                Version: '8.8',
                 Spalten: exportData.totalColumns,
                 Karten: exportData.totalCards,
                 ExterneTools: totalExternalTools,
@@ -1443,7 +1359,9 @@
                 }
             }
 
-            const importMessage = version === '8.7' ?
+            const importMessage = version === '8.8' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.8)` :
+                version === '8.7' ?
                 `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.7)` :
                 version === '8.6' ?
                 `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.6)` :
@@ -1480,7 +1398,7 @@
         });
 
         const expBtn = document.createElement('button');
-        expBtn.textContent = 'Export v8.7';
+        expBtn.textContent = 'Export v8.8';
         Object.assign(expBtn.style, {
             padding: '8px 12px',
             border: 'none',
