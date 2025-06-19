@@ -1084,7 +1084,10 @@
         log('Schritt 5: Setze Anzeigenamen...');
         await sleep(CONFIG.TIMING.FIELD_DELAY);
 
-        const displayNameInput = document.querySelector('input[id*="input-v-119"], input[placeholder*="Anzeigename"]');
+        let displayNameInput = findInputByLabelText('Anzeigename');
+        if (!displayNameInput) {
+            displayNameInput = document.querySelector('input[placeholder*="Anzeigename"]');
+        }
         if (displayNameInput) {
             displayNameInput.focus();
             await sleep(200);
@@ -1201,6 +1204,17 @@
         if (setter) setter.call(el, val);
         else el.value = val;
         el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function findInputByLabelText(text) {
+        const labels = Array.from(document.querySelectorAll('label'));
+        for (const label of labels) {
+            if (label.textContent && label.textContent.trim() === text && label.getAttribute('for')) {
+                const input = document.getElementById(label.getAttribute('for'));
+                if (input) return input;
+            }
+        }
+        return null;
     }
 
     async function addColumn(title) {
