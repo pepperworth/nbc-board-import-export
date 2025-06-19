@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NBC Board Export & Import [8.6, stable]
+// @name         NBC Board Export & Import [8.7, stable]
 // @namespace    https://niedersachsen.cloud/
-// @version      8.6
-// @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. Verbesserte Lichtblick-ID-Extraktion mit Cache-Bypass. Unterstützt alle Elementtypen inkl. Lichtblick-Tools.
+// @version      8.7
+// @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. Unterstützt Lichtblick- und Bettermarks-Tools mit verbesserter ID-Erkennung.
 // @author       Johannes Felbermair, ChatGPT
 // @match        https://niedersachsen.cloud/boards/*
 // @grant        GM_xmlhttpRequest
@@ -47,7 +47,7 @@
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     function log(...args) {
-        if (CONFIG.DEBUG) console.log('[NBC 8.6]', ...args);
+        if (CONFIG.DEBUG) console.log('[NBC 8.7]', ...args);
     }
 
     function notify(msg, type = 'info') {
@@ -447,6 +447,18 @@
                 const titleElement = externalToolElement.querySelector('[data-testid="content-element-title-slot"]');
                 const displayName = titleElement?.textContent.trim() || toolName;
 
+                // Tool-Typ anhand des Logos bestimmen
+                let toolType = '';
+                const logoImg = externalToolElement.querySelector('img[src*="external-tools"]');
+                if (logoImg) {
+                    const src = logoImg.getAttribute('src') || '';
+                    if (src.includes('656e06272113d049ac0611b0')) {
+                        toolType = 'Lichtblick';
+                    } else if (src.includes('651d3288054b8000e321532e')) {
+                        toolType = 'Bettermarks';
+                    }
+                }
+
                 // VERBESSERTE Context-ID Extraktion basierend auf Netzwerkaufzeichnung
                 let contextId = '';
 
@@ -515,6 +527,7 @@
                 elementData.toolName = toolName;
                 elementData.displayName = displayName;
                 elementData.contextId = contextId;
+                elementData.toolType = toolType;
                 elementData.elementId = externalToolElement.getAttribute('id') || '';
                 elementData.cardId = cardId;
                 elementData.content = `🔧 Externes Tool: ${displayName} (${toolName})`;
@@ -541,7 +554,7 @@
     // --- Formatversion erkennen ---
     function detectExportVersion(data) {
         const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        if (parsed.version === '8.6' || parsed.version === '8.5' || parsed.version === '8.4' || parsed.version === '8.3' || parsed.version === '8.2' || parsed.version === '8.1' || parsed.version === '8.0' || parsed.version === '7.0' || parsed.version === '6.2' || parsed.version === '6.1' || parsed.version === '6.0' || parsed.version === '5.0' ||
+        if (parsed.version === '8.7' || parsed.version === '8.6' || parsed.version === '8.5' || parsed.version === '8.4' || parsed.version === '8.3' || parsed.version === '8.2' || parsed.version === '8.1' || parsed.version === '8.0' || parsed.version === '7.0' || parsed.version === '6.2' || parsed.version === '6.1' || parsed.version === '6.0' || parsed.version === '5.0' ||
             (parsed.columns && parsed.columns[0] && parsed.columns[0].cards && parsed.columns[0].cards[0] && parsed.columns[0].cards[0].elements)) {
             return parsed.version || '5.0';
         }
@@ -657,7 +670,7 @@
 
             const exportData = {
                 exportDate: new Date().toISOString(),
-                version: '8.6',
+                version: '8.7',
                 totalColumns: result.length,
                 totalCards: result.reduce((sum, col) => sum + col.cards.length, 0),
                 totalFiles: totalFiles,
@@ -672,14 +685,14 @@
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            a.download = `board-export-v8.6-${timestamp}.json`;
+            a.download = `board-export-v8.7-${timestamp}.json`;
             a.click();
             URL.revokeObjectURL(a.href);
 
             notify(`Export erfolgreich! ${totalElements} Elemente (${totalExternalTools} Externe Tools) in ${exportData.totalCards} Karten.`, 'success');
 
             log('Export-Statistiken:', {
-                Version: '8.6',
+                Version: '8.7',
                 Spalten: exportData.totalColumns,
                 Karten: exportData.totalCards,
                 ExterneTools: totalExternalTools,
@@ -814,7 +827,7 @@
 
                 case CONFIG.ELEMENT_TYPES.EXTERNAL_TOOL:
                     await selectExternalToolElement();
-                    await insertExternalToolData(elementData.toolName, elementData.displayName, elementData.toolId);
+                    await insertExternalToolData(elementData.toolName, elementData.displayName, elementData.toolId, elementData.toolType || 'Lichtblick');
                     log('Externes Tool-Element erfolgreich erstellt');
                     break;
 
@@ -1029,53 +1042,59 @@
     }
 
     // --- VOLLSTÄNDIG ÜBERARBEITETE Externe Tool-Daten einfügen ---
-    async function insertExternalToolData(toolName, displayName, toolId) {
-        log(`Füge Externe Tool-Daten ein: ${toolName} (${displayName}) - ID: ${toolId}`);
+    async function insertExternalToolData(toolName, displayName, toolId, toolType = 'Lichtblick') {
+        log(`Füge Externe Tool-Daten ein: ${toolType} (${displayName}) - ID: ${toolId}`);
         await sleep(CONFIG.TIMING.UI_STABILIZATION_DELAY);
 
-        // Schritt 3: Tool-Auswahl Feld finden und "Licht" eingeben
+        // Schritt 3: Tool-Auswahl Feld suchen
         log('Schritt 3: Suche Tool-Auswahl Feld...');
         const toolSelectionInput = document.querySelector('input[type="text"]');
-        if (toolSelectionInput) {
-            toolSelectionInput.focus();
+        if (!toolSelectionInput) throw new Error('Tool-Auswahl Eingabefeld nicht gefunden');
+
+        toolSelectionInput.focus();
+        await sleep(200);
+
+        if (toolType === 'Bettermarks') {
+            toolSelectionInput.value = 'Bettermarks';
+            toolSelectionInput.dispatchEvent(new Event('input', { bubbles: true }));
+            await sleep(CONFIG.TIMING.DROPDOWN_WAIT_DELAY);
+            toolSelectionInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
             await sleep(200);
+            toolSelectionInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            await sleep(CONFIG.TIMING.EXTERNAL_TOOL_DELAY);
+            log('Schritt 3: Bettermarks ausgewählt');
+        } else {
             toolSelectionInput.value = 'Licht';
             toolSelectionInput.dispatchEvent(new Event('input', { bubbles: true }));
             await sleep(CONFIG.TIMING.DROPDOWN_WAIT_DELAY);
             log('Schritt 3: "Licht" in Tool-Auswahl eingegeben');
-        } else {
-            throw new Error('Tool-Auswahl Eingabefeld nicht gefunden');
-        }
 
-        // Schritt 4: Auf Dropdown-Item "Lichtblick-Filmsequenz" klicken
-        log('Schritt 4: Suche Lichtblick-Filmsequenz Dropdown-Item...');
-        await sleep(CONFIG.TIMING.DROPDOWN_WAIT_DELAY);
-
-        const dropdownItems = document.querySelectorAll('[data-testid="configuration-select-item"]');
-        let lichtblickItem = null;
-
-        for (const item of dropdownItems) {
-            const titleElement = item.querySelector('.v-list-item-title');
-            if (titleElement && titleElement.textContent.trim() === 'Lichtblick-Filmsequenz') {
-                lichtblickItem = item;
-                log('Schritt 4: Lichtblick-Filmsequenz Item gefunden');
-                break;
-            }
-        }
-
-        if (lichtblickItem) {
-            lichtblickItem.click();
-            await sleep(CONFIG.TIMING.EXTERNAL_TOOL_DELAY);
-            log('Schritt 4: Lichtblick-Filmsequenz ausgewählt');
-        } else {
-            const allListItems = document.querySelectorAll('.v-list-item');
-            for (const item of allListItems) {
+            // Schritt 4: Auf Dropdown-Item "Lichtblick-Filmsequenz" klicken
+            log('Schritt 4: Suche Lichtblick-Filmsequenz Dropdown-Item...');
+            const dropdownItems = document.querySelectorAll('[data-testid="configuration-select-item"]');
+            let lichtblickItem = null;
+            for (const item of dropdownItems) {
                 const titleElement = item.querySelector('.v-list-item-title');
                 if (titleElement && titleElement.textContent.trim() === 'Lichtblick-Filmsequenz') {
-                    item.click();
-                    await sleep(CONFIG.TIMING.EXTERNAL_TOOL_DELAY);
-                    log('Schritt 4: Lichtblick-Filmsequenz über Fallback ausgewählt');
+                    lichtblickItem = item;
+                    log('Schritt 4: Lichtblick-Filmsequenz Item gefunden');
                     break;
+                }
+            }
+            if (lichtblickItem) {
+                lichtblickItem.click();
+                await sleep(CONFIG.TIMING.EXTERNAL_TOOL_DELAY);
+                log('Schritt 4: Lichtblick-Filmsequenz ausgewählt');
+            } else {
+                const allListItems = document.querySelectorAll('.v-list-item');
+                for (const item of allListItems) {
+                    const titleElement = item.querySelector('.v-list-item-title');
+                    if (titleElement && titleElement.textContent.trim() === 'Lichtblick-Filmsequenz') {
+                        item.click();
+                        await sleep(CONFIG.TIMING.EXTERNAL_TOOL_DELAY);
+                        log('Schritt 4: Lichtblick-Filmsequenz über Fallback ausgewählt');
+                        break;
+                    }
                 }
             }
         }
@@ -1094,38 +1113,52 @@
             displayNameInput.value = displayName;
             displayNameInput.dispatchEvent(new Event('input', { bubbles: true }));
             await sleep(CONFIG.TIMING.FIELD_DELAY);
+            displayNameInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
             log('Schritt 5: Anzeigename erfolgreich gesetzt');
         } else {
             log('Schritt 5: Anzeigename-Feld nicht gefunden - verwende Standard');
         }
-
-        // Schritt 6: Tool-ID in das Filmsequenz-Feld eingeben
-        log('Schritt 6: Setze Tool-ID ins Filmsequenz-Feld...');
-        await sleep(CONFIG.TIMING.FIELD_DELAY);
-
-        const toolIdInput = document.querySelector('[data-testid="id"] input, input[id*="input-v-121"]');
-        if (toolIdInput) {
-            toolIdInput.focus();
-            await sleep(200);
-            toolIdInput.value = toolId;
-            toolIdInput.dispatchEvent(new Event('input', { bubbles: true }));
+        if (toolType !== 'Bettermarks') {
+            // Schritt 6: Tool-ID in das Filmsequenz-Feld eingeben
+            log('Schritt 6: Setze Tool-ID ins Filmsequenz-Feld...');
             await sleep(CONFIG.TIMING.FIELD_DELAY);
-            log('Schritt 6: Tool-ID erfolgreich eingegeben');
-        } else {
-            throw new Error('Tool-ID Eingabefeld nicht gefunden');
-        }
 
-        // Schritt 7: Hinzufügen-Button klicken
-        log('Schritt 7: Klicke Hinzufügen-Button...');
-        await sleep(CONFIG.TIMING.FIELD_DELAY);
+            const toolIdInput = document.querySelector('[data-testid="id"] input, input[id*="input-v-121"]');
+            if (toolIdInput) {
+                toolIdInput.focus();
+                await sleep(200);
+                toolIdInput.value = toolId;
+                toolIdInput.dispatchEvent(new Event('input', { bubbles: true }));
+                await sleep(CONFIG.TIMING.FIELD_DELAY);
+                log('Schritt 6: Tool-ID erfolgreich eingegeben');
+            } else {
+                throw new Error('Tool-ID Eingabefeld nicht gefunden');
+            }
 
-        const addButton = document.querySelector('[data-testid="save-button"]');
-        if (addButton) {
-            addButton.click();
-            await sleep(CONFIG.TIMING.ELEMENT_CONTENT_DELAY);
-            log('Schritt 7: Externes Tool erfolgreich hinzugefügt');
+            // Schritt 7: Hinzufügen-Button klicken
+            log('Schritt 7: Klicke Hinzufügen-Button...');
+            await sleep(CONFIG.TIMING.FIELD_DELAY);
+
+            const addButton = document.querySelector('[data-testid="save-button"]');
+            if (addButton) {
+                addButton.click();
+                await sleep(CONFIG.TIMING.ELEMENT_CONTENT_DELAY);
+                log('Schritt 7: Externes Tool erfolgreich hinzugefügt');
+            } else {
+                throw new Error('Hinzufügen-Button nicht gefunden');
+            }
         } else {
-            throw new Error('Hinzufügen-Button nicht gefunden');
+            // Bettermarks benötigt keine Tool-ID
+            log('Schritt 6: Bestätige Bettermarks hinzufügen...');
+            await sleep(CONFIG.TIMING.FIELD_DELAY);
+            const addButton = document.querySelector('[data-testid="save-button"]');
+            if (addButton) {
+                addButton.click();
+                await sleep(CONFIG.TIMING.ELEMENT_CONTENT_DELAY);
+                log('Schritt 6: Bettermarks-Tool hinzugefügt');
+            } else {
+                throw new Error('Hinzufügen-Button nicht gefunden');
+            }
         }
     }
 
@@ -1393,7 +1426,9 @@
                 }
             }
 
-            const importMessage = version === '8.6' ?
+            const importMessage = version === '8.7' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.7)` :
+                version === '8.6' ?
                 `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.6)` :
                 version === '8.5' ?
                 `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.5)` :
@@ -1428,7 +1463,7 @@
         });
 
         const expBtn = document.createElement('button');
-        expBtn.textContent = 'Export v8.6';
+        expBtn.textContent = 'Export v8.7';
         Object.assign(expBtn.style, {
             padding: '8px 12px',
             border: 'none',
