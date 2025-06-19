@@ -2,7 +2,7 @@
 // @name         NBC Board Export & Import [8.5, stable]
 // @namespace    https://niedersachsen.cloud/
 // @version      8.5
-// @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. KORRIGIERTE Lichtblick-ID-Extraktion basierend auf Netzwerkaufzeichnung. Unterstützt alle Elementtypen inkl. Lichtblick-Tools.
+// @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. Verbesserte Lichtblick-ID-Extraktion mit Cache-Bypass. Unterstützt alle Elementtypen inkl. Lichtblick-Tools.
 // @author       Johannes Felbermair, ChatGPT
 // @match        https://niedersachsen.cloud/boards/*
 // @grant        GM_xmlhttpRequest
@@ -81,6 +81,11 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: launchEndpoint,
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'If-None-Match': ''
+                },
                 onload: (response) => {
                     try {
                         log(`Launch-Endpoint Response Status: ${response.status}`);
