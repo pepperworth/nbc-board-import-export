@@ -1058,28 +1058,11 @@
             toolSelectionInput.value = 'Bettermarks';
             toolSelectionInput.dispatchEvent(new Event('input', { bubbles: true }));
             await sleep(CONFIG.TIMING.DROPDOWN_WAIT_DELAY);
-
-            const dropdownItems = document.querySelectorAll('[data-testid="configuration-select-item"]');
-            let bettermarksItem = null;
-            for (const item of dropdownItems) {
-                const titleElement = item.querySelector('.v-list-item-title');
-                if (titleElement && titleElement.textContent.trim().includes('Bettermarks')) {
-                    bettermarksItem = item;
-                    break;
-                }
-            }
-
-            if (bettermarksItem) {
-                bettermarksItem.click();
-                await sleep(CONFIG.TIMING.EXTERNAL_TOOL_DELAY);
-                log('Schritt 3: Bettermarks Item ausgewählt');
-            } else {
-                toolSelectionInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-                await sleep(200);
-                toolSelectionInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-                await sleep(CONFIG.TIMING.EXTERNAL_TOOL_DELAY);
-                log('Schritt 3: Bettermarks via Arrow ausgewählt');
-            }
+            toolSelectionInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+            await sleep(200);
+            toolSelectionInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            await sleep(CONFIG.TIMING.EXTERNAL_TOOL_DELAY);
+            log('Schritt 3: Bettermarks ausgewählt');
         } else {
             toolSelectionInput.value = 'Licht';
             toolSelectionInput.dispatchEvent(new Event('input', { bubbles: true }));
