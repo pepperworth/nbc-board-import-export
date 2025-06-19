@@ -34,3 +34,11 @@ werden im unteren rechten Bereich jeder Board-Seite zwei Schaltflächen eingeble
 
 Das Skript ist besonders hilfreich, um komplette Boards zu sichern oder zwischen
 Instanzen der NBC zu übertragen.
+
+## Konfiguration
+
+Im Skript befindet sich ein `CONFIG`-Block. 
+Mit der neuen Einstellung `CACHE_ENABLED` lassen sich Antworten von API-Aufrufen
+im Browser-Cache speichern und erneut verwenden. Ist das Flag aktiviert, werden
+keine "no-cache"-Header gesetzt und abgelegte Responses zuerst aus dem Cache
+geladen.

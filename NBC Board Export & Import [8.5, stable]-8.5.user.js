@@ -41,7 +41,9 @@
             LINK: 'link',
             VIDEO_CONFERENCE: 'video-conference',
             EXTERNAL_TOOL: 'external-tool'
-        }
+        },
+        // Speichert Antworten optional im Browser-Cache
+        CACHE_ENABLED: false
     };
 
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -78,68 +80,90 @@
         document.head.appendChild(style);
     }
 
-    // --- KORRIGIERTE Externe Tool URL-Extraktion basierend auf Netzwerkaufzeichnung ---
-    async function extractExternalToolId(contextId) {
-        return new Promise((resolve) => {
-            const launchEndpoint = `https://niedersachsen.cloud/api/v3/tools/context/${contextId}/launch`;
+    function getRequestHeaders() {
+        if (!CONFIG.CACHE_ENABLED) {
+            return {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'If-None-Match': ''
+            };
+        }
+        return {};
+    }
 
-            log(`Versuche Tool-ID zu extrahieren für Context: ${contextId}`);
-            log(`Launch-Endpoint: ${launchEndpoint}`);
+    async function cachedRequest(url, options = {}) {
+        const { method = 'GET' } = options;
+        const headers = Object.assign({}, options.headers || {}, getRequestHeaders());
 
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url: launchEndpoint,
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache',
-                    'If-None-Match': ''
-                },
-                onload: (response) => {
-                    try {
-                        log(`Launch-Endpoint Response Status: ${response.status}`);
-                        log(`Launch-Endpoint Response Text: ${response.responseText}`);
-
-                        // Behandlung von 304-Status (Not Modified) - KORRIGIERT basierend auf Netzwerkaufzeichnung
-                        if (response.status === 304) {
-                            log('304 (Not Modified) - verwende zwischengespeicherte Daten');
-
-                            // Parse den Response Text direkt (enthält den JSON-Content trotz 304)
-                            const data = JSON.parse(response.responseText);
-                            if (data.url) {
-                                const url = data.url;
-                                log(`Erhaltene Launch-URL aus 304-Cache: ${url}`);
-                                const toolId = extractIdFromUrl(url);
-                                resolve(toolId);
-                                return;
-                            }
-                        }
-
-                        // Behandlung von 200-Status
-                        if (response.status === 200) {
-                            const data = JSON.parse(response.responseText);
-                            if (data.url) {
-                                log(`Erhaltene Launch-URL: ${data.url}`);
-                                const toolId = extractIdFromUrl(data.url);
-                                resolve(toolId);
-                                return;
-                            }
-                        }
-
-                        log(`Unbekannter Statuscode: ${response.status}`);
-                        resolve('UnknownStatus');
-
-                    } catch (e) {
-                        log('Fehler beim Parsen des Launch-JSON:', e);
-                        log('Response Text war:', response.responseText);
-                        resolve('JsonParseError');
-                    }
-                },
-                onerror: (err) => {
-                    log('Fehler beim Abruf des Launch-Endpoints:', err);
-                    resolve('NetworkError');
+        if (CONFIG.CACHE_ENABLED && 'caches' in window) {
+            try {
+                const cache = await caches.open('nbc-script-cache');
+                const cached = await cache.match(url);
+                if (cached) {
+                    const responseText = await cached.text();
+                    return { status: cached.status, responseText, fromCache: true };
                 }
+            } catch (e) {
+                log('Cache lookup fehlgeschlagen:', e);
+            }
+        }
+
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method,
+                url,
+                headers,
+                onload: async (response) => {
+                    if (CONFIG.CACHE_ENABLED && 'caches' in window) {
+                        try {
+                            const cache = await caches.open('nbc-script-cache');
+                            await cache.put(url, new Response(response.responseText, { status: response.status }));
+                        } catch (e) {
+                            log('Fehler beim Schreiben in Cache:', e);
+                        }
+                    }
+                    resolve(response);
+                },
+                onerror: reject
             });
         });
+    }
+
+    // --- KORRIGIERTE Externe Tool URL-Extraktion basierend auf Netzwerkaufzeichnung ---
+    async function extractExternalToolId(contextId) {
+        const launchEndpoint = `https://niedersachsen.cloud/api/v3/tools/context/${contextId}/launch`;
+
+        log(`Versuche Tool-ID zu extrahieren für Context: ${contextId}`);
+        log(`Launch-Endpoint: ${launchEndpoint}`);
+
+        try {
+            const response = await cachedRequest(launchEndpoint);
+            log(`Launch-Endpoint Response Status: ${response.status}`);
+            log(`Launch-Endpoint Response Text: ${response.responseText}`);
+
+            if (response.status === 304) {
+                log('304 (Not Modified) - verwende zwischengespeicherte Daten');
+                const data = JSON.parse(response.responseText);
+                if (data.url) {
+                    const toolId = extractIdFromUrl(data.url);
+                    return toolId;
+                }
+            }
+
+            if (response.status === 200) {
+                const data = JSON.parse(response.responseText);
+                if (data.url) {
+                    const toolId = extractIdFromUrl(data.url);
+                    return toolId;
+                }
+            }
+
+            log(`Unbekannter Statuscode: ${response.status}`);
+            return 'UnknownStatus';
+        } catch (e) {
+            log('Fehler beim Abruf des Launch-Endpoints:', e);
+            return 'NetworkError';
+        }
     }
 
     // Extrahiert ID aus Lichtblick-URL (basierend auf Netzwerkaufzeichnung)
@@ -219,48 +243,31 @@
 
     // Kontext-ID eines externen Tools über die Karten-API ermitteln
     async function fetchContextIdFromApi(cardId, elementId) {
-        return new Promise((resolve) => {
-            if (!cardId || !elementId) {
-                resolve('');
-                return;
-            }
-            const apiUrl = `https://niedersachsen.cloud/api/v3/cards?ids=${cardId}`;
-            log(`Rufe Karten-API auf: ${apiUrl}`);
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url: apiUrl,
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache',
-                    'If-None-Match': ''
-                },
-                onload: (response) => {
-                    try {
-                        log(`Cards-API Status: ${response.status}`);
-                        if (response.status === 200 || response.status === 304) {
-                            const data = JSON.parse(response.responseText);
-                            const cardData = (data.data && data.data[0]) || data;
-                            const el = (cardData.elements || []).find(e => e.id === elementId);
-                            if (el && el.content && el.content.contextExternalToolId) {
-                                const ctxId = el.content.contextExternalToolId;
-                                log(`Kontext-ID aus API: ${ctxId}`);
-                                resolve(ctxId);
-                                return;
-                            }
-                        }
-                        log('Keine Kontext-ID in Karten-API gefunden');
-                        resolve('');
-                    } catch (e) {
-                        log('Fehler beim Parsen der Cards-API:', e);
-                        resolve('');
-                    }
-                },
-                onerror: (err) => {
-                    log('Fehler beim Abrufen der Karten-API:', err);
-                    resolve('');
+        if (!cardId || !elementId) {
+            return '';
+        }
+        const apiUrl = `https://niedersachsen.cloud/api/v3/cards?ids=${cardId}`;
+        log(`Rufe Karten-API auf: ${apiUrl}`);
+
+        try {
+            const response = await cachedRequest(apiUrl);
+            log(`Cards-API Status: ${response.status}`);
+            if (response.status === 200 || response.status === 304) {
+                const data = JSON.parse(response.responseText);
+                const cardData = (data.data && data.data[0]) || data;
+                const el = (cardData.elements || []).find(e => e.id === elementId);
+                if (el && el.content && el.content.contextExternalToolId) {
+                    const ctxId = el.content.contextExternalToolId;
+                    log(`Kontext-ID aus API: ${ctxId}`);
+                    return ctxId;
                 }
-            });
-        });
+            }
+            log('Keine Kontext-ID in Karten-API gefunden');
+            return '';
+        } catch (e) {
+            log('Fehler beim Abrufen der Karten-API:', e);
+            return '';
+        }
     }
 
     // --- DEBUG-Funktionen ---
