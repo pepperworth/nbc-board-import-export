@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NBC Board Export & Import [8.5, stable]
+// @name         NBC Board Export & Import [8.6, stable]
 // @namespace    https://niedersachsen.cloud/
-// @version      8.5
-// @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. KORRIGIERTE Lichtblick-ID-Extraktion basierend auf Netzwerkaufzeichnung. Unterstützt alle Elementtypen inkl. Lichtblick-Tools.
+// @version      8.6
+// @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. Verbesserte Lichtblick-ID-Extraktion mit Cache-Bypass. Unterstützt alle Elementtypen inkl. Lichtblick-Tools.
 // @author       Johannes Felbermair, ChatGPT
 // @match        https://niedersachsen.cloud/boards/*
 // @grant        GM_xmlhttpRequest
@@ -47,7 +47,7 @@
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     function log(...args) {
-        if (CONFIG.DEBUG) console.log('[NBC 8.5]', ...args);
+        if (CONFIG.DEBUG) console.log('[NBC 8.6]', ...args);
     }
 
     function notify(msg, type = 'info') {
@@ -81,6 +81,11 @@
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: launchEndpoint,
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'If-None-Match': ''
+                },
                 onload: (response) => {
                     try {
                         log(`Launch-Endpoint Response Status: ${response.status}`);
@@ -204,6 +209,52 @@
         return 'NoIdFound';
     }
 
+    // Kontext-ID eines externen Tools über die Karten-API ermitteln
+    async function fetchContextIdFromApi(cardId, elementId) {
+        return new Promise((resolve) => {
+            if (!cardId || !elementId) {
+                resolve('');
+                return;
+            }
+            const apiUrl = `https://niedersachsen.cloud/api/v3/cards?ids=${cardId}`;
+            log(`Rufe Karten-API auf: ${apiUrl}`);
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: apiUrl,
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'If-None-Match': ''
+                },
+                onload: (response) => {
+                    try {
+                        log(`Cards-API Status: ${response.status}`);
+                        if (response.status === 200 || response.status === 304) {
+                            const data = JSON.parse(response.responseText);
+                            const cardData = (data.data && data.data[0]) || data;
+                            const el = (cardData.elements || []).find(e => e.id === elementId);
+                            if (el && el.content && el.content.contextExternalToolId) {
+                                const ctxId = el.content.contextExternalToolId;
+                                log(`Kontext-ID aus API: ${ctxId}`);
+                                resolve(ctxId);
+                                return;
+                            }
+                        }
+                        log('Keine Kontext-ID in Karten-API gefunden');
+                        resolve('');
+                    } catch (e) {
+                        log('Fehler beim Parsen der Cards-API:', e);
+                        resolve('');
+                    }
+                },
+                onerror: (err) => {
+                    log('Fehler beim Abrufen der Karten-API:', err);
+                    resolve('');
+                }
+            });
+        });
+    }
+
     // --- DEBUG-Funktionen ---
     function debugColumnStructure() {
         const columns = document.querySelectorAll('[data-testid^="board-column-"]');
@@ -223,7 +274,10 @@
     function analyzeCardElements(card) {
         const elements = [];
         const contentElements = card.querySelectorAll('[data-testid^="board-contentelement-"]');
-        log(`Analysiere ${contentElements.length} Elemente in Karte`);
+        const cardTestId = card.getAttribute('data-testid') || '';
+        const cardIdMatch = cardTestId.match(/board-card-(.+)/);
+        const cardId = cardIdMatch ? cardIdMatch[1] : (card.getAttribute('id') || '');
+        log(`Analysiere ${contentElements.length} Elemente in Karte (ID: ${cardId})`);
 
         contentElements.forEach((contentElement, index) => {
             const elementData = {
@@ -461,6 +515,8 @@
                 elementData.toolName = toolName;
                 elementData.displayName = displayName;
                 elementData.contextId = contextId;
+                elementData.elementId = externalToolElement.getAttribute('id') || '';
+                elementData.cardId = cardId;
                 elementData.content = `🔧 Externes Tool: ${displayName} (${toolName})`;
                 elementData.shouldBeBold = true;
 
@@ -470,7 +526,7 @@
                     elementData.needsToolIdExtraction = true;
                 } else {
                     log(`WARNUNG: Context-ID zu kurz oder nicht gefunden für externes Tool: ${displayName}`);
-                    elementData.toolId = 'InvalidContextId';
+                    elementData.needsContextIdLookup = true;
                 }
             }
 
@@ -485,7 +541,7 @@
     // --- Formatversion erkennen ---
     function detectExportVersion(data) {
         const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        if (parsed.version === '8.5' || parsed.version === '8.4' || parsed.version === '8.3' || parsed.version === '8.2' || parsed.version === '8.1' || parsed.version === '8.0' || parsed.version === '7.0' || parsed.version === '6.2' || parsed.version === '6.1' || parsed.version === '6.0' || parsed.version === '5.0' ||
+        if (parsed.version === '8.6' || parsed.version === '8.5' || parsed.version === '8.4' || parsed.version === '8.3' || parsed.version === '8.2' || parsed.version === '8.1' || parsed.version === '8.0' || parsed.version === '7.0' || parsed.version === '6.2' || parsed.version === '6.1' || parsed.version === '6.0' || parsed.version === '5.0' ||
             (parsed.columns && parsed.columns[0] && parsed.columns[0].cards && parsed.columns[0].cards[0] && parsed.columns[0].cards[0].elements)) {
             return parsed.version || '5.0';
         }
@@ -515,9 +571,22 @@
                     const cardTitle = card.querySelector('[data-testid="card-title"]')?.textContent.trim() || '';
                     const elements = analyzeCardElements(card);
 
-                    // VERBESSERTE Tool-IDs für externe Tools extrahieren
+                    // VERBESSERTE Tool-IDs und Context-IDs für externe Tools extrahieren
                     for (const element of elements) {
-                        if (element.type === CONFIG.ELEMENT_TYPES.EXTERNAL_TOOL && element.needsToolIdExtraction && element.contextId) {
+                        if (element.type !== CONFIG.ELEMENT_TYPES.EXTERNAL_TOOL) continue;
+
+                        if (element.needsContextIdLookup && element.cardId && element.elementId) {
+                            try {
+                                log(`Hole Context-ID über API für ${element.displayName} (Card ${element.cardId}, Element ${element.elementId})`);
+                                element.contextId = await fetchContextIdFromApi(element.cardId, element.elementId);
+                                log(`Context-ID via API: ${element.contextId}`);
+                            } catch (err) {
+                                log('Fehler beim Laden der Context-ID:', err);
+                            }
+                            delete element.needsContextIdLookup;
+                        }
+
+                        if (element.contextId && element.contextId.length >= 20) {
                             try {
                                 log(`Starte Tool-ID Extraktion für: ${element.displayName} mit Context-ID: ${element.contextId}`);
                                 element.toolId = await extractExternalToolId(element.contextId);
@@ -527,7 +596,7 @@
                                 element.toolId = 'ExtractionFailed';
                             }
                             delete element.needsToolIdExtraction;
-                        } else if (element.type === CONFIG.ELEMENT_TYPES.EXTERNAL_TOOL && (!element.contextId || element.contextId.length < 20)) {
+                        } else {
                             log(`FEHLER: Externes Tool ohne gültige Context-ID gefunden: ${element.displayName} (ID: "${element.contextId}")`);
                             element.toolId = 'NoValidContextId';
                         }
@@ -588,7 +657,7 @@
 
             const exportData = {
                 exportDate: new Date().toISOString(),
-                version: '8.5',
+                version: '8.6',
                 totalColumns: result.length,
                 totalCards: result.reduce((sum, col) => sum + col.cards.length, 0),
                 totalFiles: totalFiles,
@@ -603,14 +672,14 @@
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            a.download = `board-export-v8.5-${timestamp}.json`;
+            a.download = `board-export-v8.6-${timestamp}.json`;
             a.click();
             URL.revokeObjectURL(a.href);
 
             notify(`Export erfolgreich! ${totalElements} Elemente (${totalExternalTools} Externe Tools) in ${exportData.totalCards} Karten.`, 'success');
 
             log('Export-Statistiken:', {
-                Version: '8.5',
+                Version: '8.6',
                 Spalten: exportData.totalColumns,
                 Karten: exportData.totalCards,
                 ExterneTools: totalExternalTools,
@@ -1015,7 +1084,10 @@
         log('Schritt 5: Setze Anzeigenamen...');
         await sleep(CONFIG.TIMING.FIELD_DELAY);
 
-        const displayNameInput = document.querySelector('input[id*="input-v-119"], input[placeholder*="Anzeigename"]');
+        let displayNameInput = findInputByLabelText('Anzeigename');
+        if (!displayNameInput) {
+            displayNameInput = document.querySelector('input[placeholder*="Anzeigename"]');
+        }
         if (displayNameInput) {
             displayNameInput.focus();
             await sleep(200);
@@ -1132,6 +1204,17 @@
         if (setter) setter.call(el, val);
         else el.value = val;
         el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function findInputByLabelText(text) {
+        const labels = Array.from(document.querySelectorAll('label'));
+        for (const label of labels) {
+            if (label.textContent && label.textContent.trim() === text && label.getAttribute('for')) {
+                const input = document.getElementById(label.getAttribute('for'));
+                if (input) return input;
+            }
+        }
+        return null;
     }
 
     async function addColumn(title) {
@@ -1310,7 +1393,9 @@
                 }
             }
 
-            const importMessage = version === '8.5' ?
+            const importMessage = version === '8.6' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.6)` :
+                version === '8.5' ?
                 `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.5)` :
                 version === '8.4' ?
                 `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.4)` :
@@ -1343,7 +1428,7 @@
         });
 
         const expBtn = document.createElement('button');
-        expBtn.textContent = 'Export v8.5';
+        expBtn.textContent = 'Export v8.6';
         Object.assign(expBtn.style, {
             padding: '8px 12px',
             border: 'none',
