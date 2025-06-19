@@ -70,6 +70,14 @@
         el.textContent = msg;
     }
 
+    function addCustomStyles() {
+        if (document.getElementById('nbc-custom-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'nbc-custom-styles';
+        style.textContent = '.nbc-highlight { background-color: yellow; }';
+        document.head.appendChild(style);
+    }
+
     // --- KORRIGIERTE Externe Tool URL-Extraktion basierend auf Netzwerkaufzeichnung ---
     async function extractExternalToolId(contextId) {
         return new Promise((resolve) => {
@@ -454,7 +462,7 @@
                 }
 
                 elementData.type = CONFIG.ELEMENT_TYPES.TEXT;
-                elementData.content = `An dieser Stelle muss das externe Tool ${toolType} hinzugefügt werden.`;
+                elementData.content = `<span class="nbc-highlight">An dieser Stelle muss das externe Tool ${toolType} hinzugefügt werden.</span>`;
                 elementData.shouldBeBold = true;
                 elementData.isExternalToolPlaceholder = true;
             }
@@ -1385,6 +1393,7 @@
 
     function initUI() {
         if (document.getElementById('nbc-ui')) return;
+        addCustomStyles();
 
         const wrapper = document.createElement('div');
         wrapper.id = 'nbc-ui';
