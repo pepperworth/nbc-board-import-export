@@ -20,7 +20,7 @@ werden im unteren rechten Bereich jeder Board-Seite zwei Schaltflächen eingeble
 
 1. Einen Userscript-Manager wie **Tampermonkey** oder **Violentmonkey** im Browser
    installieren.
-2. Die Datei `NBC Board Export & Import [8.5, stable]-8.5.user.js` in diesem
+2. Die Datei `NBC Board Export & Import [8.8, stable]-8.8.user.js` in diesem
    Repository öffnen und im Userscript-Manager installieren.
 3. Anschließend ein Board unter `https://niedersachsen.cloud/boards/` laden.
    Dort erscheinen die neuen Schaltflächen unten rechts.
@@ -34,6 +34,15 @@ werden im unteren rechten Bereich jeder Board-Seite zwei Schaltflächen eingeble
 
 Das Skript ist besonders hilfreich, um komplette Boards zu sichern oder zwischen
 Instanzen der NBC zu übertragen.
+
+### Schritt-für-Schritt-Anleitung
+
+1. Das Userscript in **Tampermonkey** importieren und aktivieren.
+2. Ein NBC-Board öffnen und vor jedem Klick auf **Export v8.8** oder **Import** die Seite neu laden.
+3. Zum Export auf **Export v8.8** klicken und die heruntergeladene Datei speichern.
+4. Einen neuen Bereich anlegen, das Zielboard laden und erneut die Seite neu laden.
+5. Über **Import** die exportierte Datei auswählen.
+6. Im Fenster bleiben und warten, bis das Board komplett erstellt wurde. Je nach Größe kann dies einige Minuten dauern.
 
 ## Konfiguration
 
