@@ -1414,11 +1414,11 @@
         });
 
         const expBtn = document.createElement('button');
-        expBtn.textContent = 'Export v8.8';
+        expBtn.textContent = '⬇️ Export v8.8';
         Object.assign(expBtn.style, {
-            padding: '8px 12px',
+            padding: '8px 16px',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '20px',
             background: '#2196f3',
             color: '#fff',
             cursor: 'pointer',
@@ -1427,11 +1427,11 @@
         expBtn.addEventListener('click', exportBoard);
 
         const impBtn = document.createElement('button');
-        impBtn.textContent = 'Import';
+        impBtn.textContent = '⬆️ Import';
         Object.assign(impBtn.style, {
-            padding: '8px 12px',
+            padding: '8px 16px',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '20px',
             background: '#4caf50',
             color: '#fff',
             cursor: 'pointer',
