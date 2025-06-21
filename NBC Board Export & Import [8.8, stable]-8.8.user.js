@@ -1414,11 +1414,17 @@
         });
 
         const expBtn = document.createElement('button');
-        expBtn.textContent = 'Export v8.8';
+        expBtn.innerHTML =
+            '<span style="display:flex;flex-direction:column;align-items:center;line-height:1;">' +
+            '<span style="font-weight:bold;font-size:10px;">E</span>' +
+            '<span style="font-size:20px;">⬇️</span>' +
+            '</span>';
         Object.assign(expBtn.style, {
-            padding: '8px 12px',
+            width: '48px',
+            height: '48px',
+            padding: '0',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '50%',
             background: '#2196f3',
             color: '#fff',
             cursor: 'pointer',
@@ -1427,11 +1433,17 @@
         expBtn.addEventListener('click', exportBoard);
 
         const impBtn = document.createElement('button');
-        impBtn.textContent = 'Import';
+        impBtn.innerHTML =
+            '<span style="display:flex;flex-direction:column;align-items:center;line-height:1;">' +
+            '<span style="font-weight:bold;font-size:10px;">I</span>' +
+            '<span style="font-size:20px;">⬆️</span>' +
+            '</span>';
         Object.assign(impBtn.style, {
-            padding: '8px 12px',
+            width: '48px',
+            height: '48px',
+            padding: '0',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '50%',
             background: '#4caf50',
             color: '#fff',
             cursor: 'pointer',
