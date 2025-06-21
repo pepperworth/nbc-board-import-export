@@ -76,7 +76,28 @@
         if (document.getElementById('nbc-custom-styles')) return;
         const style = document.createElement('style');
         style.id = 'nbc-custom-styles';
-        style.textContent = '.nbc-highlight { background-color: yellow; }';
+        style.textContent = `
+            .nbc-highlight { background-color: yellow; }
+            #nbc-ui button {
+                width: 48px;
+                height: 48px;
+                border: none;
+                border-radius: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                line-height: 1;
+                cursor: pointer;
+                color: #fff;
+            }
+            #nbc-ui button .nbc-letter {
+                font-size: 10px;
+            }
+            #nbc-ui .nbc-export { background: #2196f3; }
+            #nbc-ui .nbc-import { background: #4caf50; }
+        `;
         document.head.appendChild(style);
     }
 
@@ -1414,29 +1435,13 @@
         });
 
         const expBtn = document.createElement('button');
-        expBtn.textContent = 'Export v8.8';
-        Object.assign(expBtn.style, {
-            padding: '8px 12px',
-            border: 'none',
-            borderRadius: '4px',
-            background: '#2196f3',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: '12px'
-        });
+        expBtn.className = 'nbc-export';
+        expBtn.innerHTML = `<span class="nbc-letter">E</span>📤`;
         expBtn.addEventListener('click', exportBoard);
 
         const impBtn = document.createElement('button');
-        impBtn.textContent = 'Import';
-        Object.assign(impBtn.style, {
-            padding: '8px 12px',
-            border: 'none',
-            borderRadius: '4px',
-            background: '#4caf50',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: '12px'
-        });
+        impBtn.className = 'nbc-import';
+        impBtn.innerHTML = `<span class="nbc-letter">I</span>📥`;
 
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
