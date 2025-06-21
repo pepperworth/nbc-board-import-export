@@ -3,7 +3,7 @@
 Dieses Repository enthält ein Userscript, das den Export und Import von Boards in der
 [Niedersachsen Cloud](https://niedersachsen.cloud/) ermöglicht. Nach der Installation
 werden im unteren rechten Bereich jeder Board-Seite zwei Schaltflächen eingeblendet:
-**⬇️ Export v8.8** und **⬆️ Import**.
+**Export v8.8** und **Import**.
 
 ## Hauptfunktionen
 
@@ -27,9 +27,9 @@ werden im unteren rechten Bereich jeder Board-Seite zwei Schaltflächen eingeble
 
 ## Benutzung
 
-* **⬇️ Export v8.8**: Erstellt eine JSON-Datei mit allen Spalten, Karten und deren
+* **Export v8.8**: Erstellt eine JSON-Datei mit allen Spalten, Karten und deren
   Inhalten. Die Datei wird automatisch heruntergeladen.
-* **⬆️ Import**: Wähle eine zuvor exportierte JSON-Datei aus, um das Board
+* **Import**: Wähle eine zuvor exportierte JSON-Datei aus, um das Board
   wiederherzustellen. Die Struktur wird anhand der Datei rekonstruiert.
 
 Das Skript ist besonders hilfreich, um komplette Boards zu sichern oder zwischen
@@ -38,10 +38,10 @@ Instanzen der NBC zu übertragen.
 ### Schritt-für-Schritt-Anleitung
 
 1. Das Userscript in **Tampermonkey** importieren und aktivieren.
-2. Ein NBC-Board öffnen und vor jedem Klick auf **⬇️ Export v8.8** oder **⬆️ Import** die Seite neu laden.
-3. Zum Export auf **⬇️ Export v8.8** klicken und die heruntergeladene Datei speichern.
+2. Ein NBC-Board öffnen und vor jedem Klick auf **Export v8.8** oder **Import** die Seite neu laden.
+3. Zum Export auf **Export v8.8** klicken und die heruntergeladene Datei speichern.
 4. Einen neuen Bereich anlegen, das Zielboard laden und erneut die Seite neu laden.
-5. Über **⬆️ Import** die exportierte Datei auswählen.
+5. Über **Import** die exportierte Datei auswählen.
 6. Im Fenster bleiben und warten, bis das Board komplett erstellt wurde. Je nach Größe kann dies einige Minuten dauern.
 
 ## Konfiguration
