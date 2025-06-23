@@ -518,6 +518,8 @@
         try {
             notify('Exportiere...');
             const result = [];
+            const boardTitle = document.querySelector('[data-testid="board-title"]')?.textContent.trim() || '';
+            log(`Board-Titel: ${boardTitle}`);
             let totalFiles = 0;
             let totalElements = 0;
             let totalLinks = 0;
@@ -623,6 +625,7 @@
             const exportData = {
                 exportDate: new Date().toISOString(),
                 version: '8.8',
+                boardTitle: boardTitle,
                 totalColumns: result.length,
                 totalCards: result.reduce((sum, col) => sum + col.cards.length, 0),
                 totalFiles: totalFiles,
@@ -1208,6 +1211,30 @@
         el.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
+    async function setBoardTitle(title) {
+        const titleEl = document.querySelector('[data-testid="board-title"]');
+        if (!titleEl) {
+            log('Board-Titel-Element nicht gefunden');
+            return;
+        }
+        titleEl.click();
+        await sleep(200);
+        if ('value' in titleEl) {
+            setValue(titleEl, title);
+            await sleep(200);
+            titleEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        } else if (titleEl.isContentEditable) {
+            titleEl.focus();
+            await sleep(200);
+            titleEl.textContent = title;
+            titleEl.dispatchEvent(new Event('input', { bubbles: true }));
+            titleEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        } else {
+            titleEl.textContent = title;
+        }
+        await sleep(CONFIG.TIMING.FIELD_DELAY);
+    }
+
     function findInputByLabelText(text) {
         const labels = Array.from(document.querySelectorAll('label'));
         for (const label of labels) {
@@ -1356,6 +1383,7 @@
         try {
             notify('Importiere...');
             const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+            const boardTitle = parsed.boardTitle || '';
             const version = detectExportVersion(parsed);
             const cols = Array.isArray(parsed) ? parsed : (parsed.columns || []);
 
@@ -1379,6 +1407,11 @@
             }
             if (parsed.totalElements) {
                 log(`Import-Info: ${parsed.totalElements} Elemente total`);
+            }
+
+            if (boardTitle) {
+                log(`Setze Board-Titel auf: ${boardTitle}`);
+                await setBoardTitle(boardTitle);
             }
 
             for (let i = 0; i < cols.length; i++) {
