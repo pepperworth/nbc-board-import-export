@@ -7,11 +7,11 @@ werden im unteren rechten Bereich jeder Board-Seite zwei Schaltflächen eingeble
 
 ## Hauptfunktionen
 
-* Exportiert Spalten, Karten und alle unterstützten Inhaltstypen (z. B. Textfelder,
-  Dateien, Links, Videokonferenzen und Platzhalter für externe Tools) in eine
-  strukturierte JSON-Datei.
-* Importiert ein solches JSON-Archiv wieder und stellt dabei möglichst die gesamte
-  Board-Struktur her.
+* Exportiert Spalten, Karten, den Boardtitel und alle unterstützten Inhaltstypen
+  (z. B. Textfelder, Dateien, Links, Videokonferenzen und Platzhalter für externe
+  Tools) in eine strukturierte JSON-Datei.
+* Importiert ein solches JSON-Archiv wieder und stellt dabei möglichst die
+  gesamte Board-Struktur inklusive des Boardtitels her.
 * Erkennt verschiedene Exportversionen und passt den Import entsprechend an.
 * Fügt eine kleine Benutzeroberfläche mit Export- und Import-Schaltflächen direkt
   in die Board-Seite ein.
