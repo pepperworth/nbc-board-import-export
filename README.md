@@ -3,7 +3,7 @@
 Dieses Repository enthält ein Userscript, das den Export und Import von Boards in der
 [Niedersachsen Cloud](https://niedersachsen.cloud/) ermöglicht. Nach der Installation
 werden im unteren rechten Bereich jeder Board-Seite zwei Schaltflächen eingeblendet:
-**Export v0.9** und **Import**.
+**[E]xport** und **[I]mport**.
 
 ## Hauptfunktionen
 
