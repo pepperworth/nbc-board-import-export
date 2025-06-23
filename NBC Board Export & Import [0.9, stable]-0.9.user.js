@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         NBC Board Export & Import [8.8, stable]
+// @name         NBC Board Export & Import [0.9, stable]
 // @namespace    https://niedersachsen.cloud/
-// @version      8.8
+// @version      0.9
 // @description  Export/Import mit vollständiger Elementstruktur-Erhaltung. Unterstützt Text-Platzhalter für externe Tools.
 // @author       Johannes Felbermair, ChatGPT
 // @match        https://niedersachsen.cloud/boards/*
@@ -49,7 +49,7 @@
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     function log(...args) {
-        if (CONFIG.DEBUG) console.log('[NBC 8.8]', ...args);
+        if (CONFIG.DEBUG) console.log('[NBC 0.9]', ...args);
     }
 
     function notify(msg, type = 'info') {
@@ -506,9 +506,9 @@
     // --- Formatversion erkennen ---
     function detectExportVersion(data) {
         const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        if (parsed.version === '8.8' || parsed.version === '8.7' || parsed.version === '8.6' || parsed.version === '8.5' || parsed.version === '8.4' || parsed.version === '8.3' || parsed.version === '8.2' || parsed.version === '8.1' || parsed.version === '8.0' || parsed.version === '7.0' || parsed.version === '6.2' || parsed.version === '6.1' || parsed.version === '6.0' || parsed.version === '5.0' ||
+        if (parsed.version === '0.9' || parsed.version === '0.87' || parsed.version === '0.86' || parsed.version === '0.85' || parsed.version === '0.84' || parsed.version === '0.83' || parsed.version === '0.82' || parsed.version === '0.81' || parsed.version === '0.80' || parsed.version === '0.70' || parsed.version === '0.62' || parsed.version === '0.61' || parsed.version === '0.60' || parsed.version === '0.50' ||
             (parsed.columns && parsed.columns[0] && parsed.columns[0].cards && parsed.columns[0].cards[0] && parsed.columns[0].cards[0].elements)) {
-            return parsed.version || '5.0';
+            return parsed.version || '0.50';
         }
         return '4.x';
     }
@@ -624,7 +624,7 @@
 
             const exportData = {
                 exportDate: new Date().toISOString(),
-                version: '8.8',
+                version: '0.9',
                 boardTitle: boardTitle,
                 totalColumns: result.length,
                 totalCards: result.reduce((sum, col) => sum + col.cards.length, 0),
@@ -640,14 +640,14 @@
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            a.download = `board-export-v8.8-${timestamp}.json`;
+            a.download = `board-export-v0.9-${timestamp}.json`;
             a.click();
             URL.revokeObjectURL(a.href);
 
             notify(`Export erfolgreich! ${totalElements} Elemente (${totalExternalTools} Externe Tools) in ${exportData.totalCards} Karten.`, 'success');
 
             log('Export-Statistiken:', {
-                Version: '8.8',
+                Version: '0.9',
                 Spalten: exportData.totalColumns,
                 Karten: exportData.totalCards,
                 ExterneTools: totalExternalTools,
@@ -1230,7 +1230,7 @@
         }
 
         if (input) {
-            input.focus();
+            input.click();
             await sleep(200);
             setValue(input, title);
             await sleep(200);
@@ -1445,20 +1445,20 @@
                 }
             }
 
-            const importMessage = version === '8.8' ?
-                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.8)` :
-                version === '8.7' ?
-                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.7)` :
-                version === '8.6' ?
-                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.6)` :
-                version === '8.5' ?
-                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.5)` :
-                version === '8.4' ?
-                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.4)` :
-                version === '8.3' ?
-                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.3)` :
-                version === '8.2' ?
-                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v8.2)` :
+            const importMessage = version === '0.9' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v0.9)` :
+                version === '0.87' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v0.87)` :
+                version === '0.86' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v0.86)` :
+                version === '0.85' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v0.85)` :
+                version === '0.84' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v0.84)` :
+                version === '0.83' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v0.83)` :
+                version === '0.82' ?
+                `Import erfolgreich! ${parsed.totalElements || 'Unbekannte Anzahl'} Elemente importiert. (v0.82)` :
                 'Import erfolgreich! (Legacy-Format)';
 
             notify(importMessage, 'success');
