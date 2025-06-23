@@ -1217,9 +1217,25 @@
             log('Board-Titel-Element nicht gefunden');
             return;
         }
+
         titleEl.click();
         await sleep(200);
-        if ('value' in titleEl) {
+
+        let input = document.querySelector('input[placeholder*="Titel"], textarea[placeholder*="Titel"]');
+        if (!input) {
+            const active = document.activeElement;
+            if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+                input = active;
+            }
+        }
+
+        if (input) {
+            input.focus();
+            await sleep(200);
+            setValue(input, title);
+            await sleep(200);
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        } else if ('value' in titleEl) {
             setValue(titleEl, title);
             await sleep(200);
             titleEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -1232,6 +1248,7 @@
         } else {
             titleEl.textContent = title;
         }
+
         await sleep(CONFIG.TIMING.FIELD_DELAY);
     }
 
